@@ -1,4 +1,4 @@
-import  { useState } from 'react';
+import React, { useState } from 'react';
 
 const DonationComponent = () => {
   const [amount, setAmount] = useState('');
@@ -24,6 +24,13 @@ const DonationComponent = () => {
       return;
     }
 
+    // Ensure amount is a valid number
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      alert('Please enter a valid donation amount.');
+      return;
+    }
+
     const request = {
       countryCode: 'US',
       currencyCode: 'USD',
@@ -32,7 +39,7 @@ const DonationComponent = () => {
       total: {
         label: 'Demo (Card is not charged)',
         type: 'final',
-        amount: '1.99',
+        amount: parsedAmount.toFixed(2),  // Ensure two decimal places
       },
     };
 
@@ -65,15 +72,15 @@ const DonationComponent = () => {
       session.completePayment(result);
     };
 
-    session.oncouponcodechanged = (event) => {
-      const update = {
-        newTotal: calculateNewTotal(event.couponCode),
-        newLineItems: calculateNewLineItems(event.couponCode),
-        newShippingMethods: calculateNewShippingMethods(event.couponCode),
-        errors: calculateErrors(event.couponCode),
-      };
-      session.completeCouponCodeChange(update);
-    };
+    // session.oncouponcodechanged = (event) => {
+    //   const update = {
+    //     newTotal: calculateNewTotal(event.couponCode),
+    //     newLineItems: calculateNewLineItems(event.couponCode),
+    //     newShippingMethods: calculateNewShippingMethods(event.couponCode),
+    //     errors: calculateErrors(event.couponCode),
+    //   };
+    //   session.completeCouponCodeChange(update);
+    // };
 
     session.oncancel = (event) => {
       console.log('Payment canceled:', event);
