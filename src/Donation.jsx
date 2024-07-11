@@ -1,90 +1,85 @@
 import  { useState } from 'react';
 
-const Donation= () => {
+const DonationComponent = () => {
   const [amount, setAmount] = useState('');
 
   const handleInputChange = (e) => {
     setAmount(e.target.value);
   };
 
-  const validateMerchant = async () => {
-    // This function should make a call to your server to get a valid merchant session.
-    // Here we are just simulating the response.
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          merchantSessionIdentifier: 'mock-session-id',
-        });
-      }, 1000);
+  const validateMerchant = async (validationURL) => {
+    const response = await fetch('http://localhost:8000/payments/validate-merchant/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ validationURL }),
     });
+    return response.json();
   };
 
-  const onDonateButtonClicked = async () => {
-    if (!PaymentRequest) {
-      alert('Payment Request API not supported in this browser.');
+  const onApplePayButtonClicked = async () => {
+    if (!window.ApplePaySession) {
+      alert('Apple Pay is not supported in this browser.');
       return;
     }
 
-    try {
-      const paymentMethodData = [{
-        supportedMethods: 'https://apple.com/apple-pay',
-        data: {
-          version: 3,
-          merchantIdentifier: 'merchant.com.apdemo',
-          merchantCapabilities: ['supports3DS'],
-          supportedNetworks: ['amex', 'discover', 'masterCard', 'visa'],
-          countryCode: 'US'
-        }
-      }];
+    const request = {
+      countryCode: 'US',
+      currencyCode: 'USD',
+      merchantCapabilities: ['supports3DS'],
+      supportedNetworks: ['visa', 'masterCard', 'amex', 'discover'],
+      total: {
+        label: 'Demo (Card is not charged)',
+        type: 'final',
+        amount: '1.99',
+      },
+    };
 
-      const paymentDetails = {
-        total: {
-          label: 'Donation (Card is not charged)',
-          amount: {
-            value: amount,
-            currency: 'USD'
-          }
-        }
+    const session = new ApplePaySession(3, request);
+
+    session.onvalidatemerchant = async (event) => {
+      const merchantSession = await validateMerchant(event.validationURL);
+      session.completeMerchantValidation(merchantSession);
+    };
+
+    session.onpaymentmethodselected = (event) => {
+      const update = {};
+      session.completePaymentMethodSelection(update);
+    };
+
+    session.onshippingmethodselected = (event) => {
+      const update = {};
+      session.completeShippingMethodSelection(update);
+    };
+
+    session.onshippingcontactselected = (event) => {
+      const update = {};
+      session.completeShippingContactSelection(update);
+    };
+
+    session.onpaymentauthorized = (event) => {
+      const result = {
+        status: ApplePaySession.STATUS_SUCCESS,
       };
+      session.completePayment(result);
+    };
 
-      const paymentOptions = {
-        requestPayerName :false,
-        requestBillingAddress: false,
-        requestPayerEmail: false,
-        requestPayerPhone: false
+    session.oncouponcodechanged = (event) => {
+      const update = {
+        newTotal: calculateNewTotal(event.couponCode),
+        newLineItems: calculateNewLineItems(event.couponCode),
+        newShippingMethods: calculateNewShippingMethods(event.couponCode),
+        errors: calculateErrors(event.couponCode),
       };
+      session.completeCouponCodeChange(update);
+    };
 
-      const request = new PaymentRequest(paymentMethodData, paymentDetails, paymentOptions);
+    session.oncancel = (event) => {
+      console.log('Payment canceled:', event);
+    };
 
-      request.onmerchantvalidation = async (event) => {
-        const merchantSession = await validateMerchant();
-        event.complete(merchantSession);
-      };
-
-      request.onpaymentmethodchange = (event) => {
-        const paymentDetailsUpdate = { total: paymentDetails.total };
-        event.updateWith(paymentDetailsUpdate);
-      };
-
-      request.onshippingoptionchange = (event) => {
-        const paymentDetailsUpdate = { total: paymentDetails.total };
-        event.updateWith(paymentDetailsUpdate);
-      };
-
-      request.onshippingaddresschange = (event) => {
-        const paymentDetailsUpdate = {};
-        event.updateWith(paymentDetailsUpdate);
-      };
-
-      const response = await request.show();
-      const status = 'success';
-      await response.complete(status);
-
-      alert('Donation successful! Thank you.');
-    } catch (e) {
-      console.error('Payment Request API error:', e);
-      alert('Payment failed.');
-    }
+    session.begin();
   };
 
   return (
@@ -95,11 +90,10 @@ const Donation= () => {
         value={amount} 
         onChange={handleInputChange} 
         placeholder="Enter donation amount"
-        className='m-lr-20'
       />
-      <button onClick={onDonateButtonClicked}>Donate with Apple Pay</button>
+      <button onClick={onApplePayButtonClicked}>Donate with Apple Pay</button>
     </div>
   );
 };
 
-export default Donation;
+export default DonationComponent;
