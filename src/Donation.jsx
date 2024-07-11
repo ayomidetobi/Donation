@@ -32,8 +32,8 @@ const DonationComponent = () => {
     }
 
     const request = {
-      countryCode: 'US',
-      currencyCode: 'USD',
+      countryCode: 'GB',
+      currencyCode: 'GPB',
       merchantCapabilities: ['supports3DS'],
       supportedNetworks: ['visa', 'masterCard', 'amex', 'discover'],
       total: {
