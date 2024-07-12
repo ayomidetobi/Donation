@@ -1,7 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const DonationComponent = () => {
   const [amount, setAmount] = useState('');
+
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://pay.google.com/gp/p/js/pay.js';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   const handleInputChange = (e) => {
     setAmount(e.target.value);
@@ -24,7 +34,6 @@ const DonationComponent = () => {
       return;
     }
 
-    // Ensure amount is a valid number
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       alert('Please enter a valid donation amount.');
@@ -39,35 +48,20 @@ const DonationComponent = () => {
       total: {
         label: 'Demo (Card is not charged)',
         type: 'final',
-        amount: parsedAmount.toFixed(2),  // Ensure two decimal places
+        amount: parsedAmount.toFixed(2),
       },
     };
 
     const session = new ApplePaySession(3, request);
 
     session.onvalidatemerchant = async (event) => {
-        try {
-          const merchantSession = await validateMerchant(event.validationURL);
-          session.completeMerchantValidation(merchantSession);
-        } catch (error) {
-          console.error('Error validating merchant:', error);
-          // Handle error, show user-friendly message
-          alert('Error validating merchant. Please try again later.:',event.validationURL);
-        }
-      };
-    session.onpaymentmethodselected = (event) => {
-      const update = {};
-      session.completePaymentMethodSelection(update);
-    };
-
-    session.onshippingmethodselected = (event) => {
-      const update = {};
-      session.completeShippingMethodSelection(update);
-    };
-
-    session.onshippingcontactselected = (event) => {
-      const update = {};
-      session.completeShippingContactSelection(update);
+      try {
+        const merchantSession = await validateMerchant(event.validationURL);
+        session.completeMerchantValidation(merchantSession);
+      } catch (error) {
+        console.error('Error validating merchant:', error);
+        alert('Error validating merchant. Please try again later.');
+      }
     };
 
     session.onpaymentauthorized = (event) => {
@@ -77,16 +71,6 @@ const DonationComponent = () => {
       session.completePayment(result);
     };
 
-    // session.oncouponcodechanged = (event) => {
-    //   const update = {
-    //     newTotal: calculateNewTotal(event.couponCode),
-    //     newLineItems: calculateNewLineItems(event.couponCode),
-    //     newShippingMethods: calculateNewShippingMethods(event.couponCode),
-    //     errors: calculateErrors(event.couponCode),
-    //   };
-    //   session.completeCouponCodeChange(update);
-    // };
-
     session.oncancel = (event) => {
       console.log('Payment canceled:', event);
     };
@@ -94,16 +78,73 @@ const DonationComponent = () => {
     session.begin();
   };
 
+  const onGooglePayButtonClicked = async () => {
+    const paymentsClient = new window.google.payments.api.PaymentsClient({ environment: 'TEST' });
+
+    const isReadyToPayRequest = {
+      apiVersion: 2,
+      apiVersionMinor: 0,
+      allowedPaymentMethods: [{
+        type: 'CARD',
+        parameters: {
+          allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+          allowedCardNetworks: ['AMEX', 'DISCOVER', 'MASTERCARD', 'VISA'],
+        },
+        tokenizationSpecification: {
+          type: 'PAYMENT_GATEWAY',
+          parameters: {
+            gateway: 'example',
+            gatewayMerchantId: 'exampleGatewayMerchantId',
+          },
+        },
+      }],
+    };
+
+    const isReadyToPayResponse = await paymentsClient.isReadyToPay(isReadyToPayRequest);
+    if (!isReadyToPayResponse.result) {
+      alert('Google Pay is not available in this browser.');
+      return;
+    }
+
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      alert('Please enter a valid donation amount.');
+      return;
+    }
+
+    const paymentDataRequest = {
+      ...isReadyToPayRequest,
+      transactionInfo: {
+        totalPriceStatus: 'FINAL',
+        totalPrice: parsedAmount.toFixed(2),
+        currencyCode: 'USD',
+      },
+      merchantInfo: {
+        merchantName: 'Example Merchant',
+      },
+    };
+
+    paymentsClient.loadPaymentData(paymentDataRequest).then((paymentData) => {
+      console.log('Payment successful:', paymentData);
+      // Handle payment data submission to your server here
+    }).catch((error) => {
+      console.error('Payment failed:', error);
+      alert('Payment failed. Please try again.');
+    });
+  };
+
   return (
-    <div>
+    <div className='container container-width'>
       <h1>Donate</h1>
       <input 
         type="number" 
         value={amount} 
         onChange={handleInputChange} 
         placeholder="Enter donation amount"
+        className='form-control mb-4 w-100'
       />
-      <button onClick={onApplePayButtonClicked}>Donate with Apple Pay</button>
+      <button className='btn btn-outline-dark fw-bold d-block my-3 p-2 w-100' onClick={onApplePayButtonClicked}>Donate with <i className="bi bi-apple text-secondary"></i> Apple Pay</button>
+      <button className='btn btn-outline-dark fw-bold d-block p-2 w-100' onClick={onGooglePayButtonClicked}>Donate with <i className="bi bi-google text-danger"></i> Google Pay</button>
     </div>
   );
 };
