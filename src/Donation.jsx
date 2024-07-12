@@ -8,7 +8,7 @@ const DonationComponent = () => {
   };
 
   const validateMerchant = async (validationURL) => {
-    const response = await fetch('http://localhost:8000/payments/validate-merchant/', {
+    const response = await fetch('https://qqgdtr3b-8000.uks1.devtunnels.ms/payments/validate-merchant/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -32,8 +32,8 @@ const DonationComponent = () => {
     }
 
     const request = {
-      countryCode: 'GB',
-      currencyCode: 'GPB',
+      countryCode: 'US',
+      currencyCode: 'USD',
       merchantCapabilities: ['supports3DS'],
       supportedNetworks: ['visa', 'masterCard', 'amex', 'discover'],
       total: {
@@ -46,10 +46,15 @@ const DonationComponent = () => {
     const session = new ApplePaySession(3, request);
 
     session.onvalidatemerchant = async (event) => {
-      const merchantSession = await validateMerchant(event.validationURL);
-      session.completeMerchantValidation(merchantSession);
-    };
-
+        try {
+          const merchantSession = await validateMerchant(event.validationURL);
+          session.completeMerchantValidation(merchantSession);
+        } catch (error) {
+          console.error('Error validating merchant:', error);
+          // Handle error, show user-friendly message
+          alert('Error validating merchant. Please try again later.:',event.validationURL);
+        }
+      };
     session.onpaymentmethodselected = (event) => {
       const update = {};
       session.completePaymentMethodSelection(update);
