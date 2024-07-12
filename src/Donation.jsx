@@ -8,7 +8,7 @@ const DonationComponent = () => {
   };
 
   const validateMerchant = async (validationURL) => {
-    const response = await fetch('https://qqgdtr3b-8000.uks1.devtunnels.ms/payments/validate-merchant/', {
+    const response = await fetch('https://donation-api-nr7d.onrender.com/payments/validate-merchant/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
